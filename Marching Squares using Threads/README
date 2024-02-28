@@ -1,0 +1,51 @@
+Mai intai ne cream structura thread-ului care este formata din:
+    thread_id = id-ul thread-ului care ruleaza
+    threads = numarul de thread-uri
+    sigma = valoare de referinta (= 200)
+    first_barrier = primul tip de bariera (cel care blocheaza doar thread-urile create de thread-ul principal)
+    second_barrier = al doilea tip de bariera(cel care blocheaza si thread-urile create si thread-ul principal)
+    image = imaginea veche
+    new_image = imaginea rescalata
+    step_x, step_y = distanta fixata
+    check_create_threads = verificare daca a fost deja apelat pthread_create
+    grid = grid-ul imaginii
+    contour_map = contour_map-uul imaginii
+    
+    In fisierul tema1_par.c mai intai am extravt numarul de thread-uri, am initializat cele doua bariere
+    dupa care am initializat si structura fiecarui thread, carora le-am actualizat datele in functie de ce
+    aveam la dispozitie(first_barrier, second_barrier, threads, check_create_threads);
+    Am creat si o variabile run_first_create pentru a verifica in tema1_par.c daca s-a apelat deja
+    pthread_create() sau inca nu;
+    Dupa ce s-a initializat si contour_map am adaugat-o in structura thread-urilor dupa care se va face
+    rescale.
+
+    In cazul resclale-ului avem doua cazuri:
+        -primul caz in care nu trebuie sa facem rescale si returnam direct imaginea
+        -al doilea caz in care trebuie sa facem rescale caz in care se aloca noua imagine, se adauga in
+         structura thread-urilor si se creeaza thread-urile, (in acest caz, thread-ul principal va trebui
+         sa astepte celelalte thread-uri pentru a putea sa returnam new_image)
+
+    In cazul sample_grid avem tot doua cazuri:
+        -cazul in care thread-urile au fost deja create, caz in care thread-urile create
+         trebuie sa astepte datele actualizate pentru a trece mai departe
+        -cazul in care thread-urile nu au fost create, caz in care cream thread_urile
+        -dupa toate aceste operatii va trebui sa asteptam procesarea tuturor thread-urilor pentru ca
+        functia sa returneze grid-ul
+
+    Functia march nu am mai apelat-o din moment ce am paralelizat-o in functia thread-urilor
+    Dupa aceea a ramas sa distrugem barierele, sa scriem imaginea intr-un fisier ppm si sa eliberam resursele.
+
+    In fisierul threads.c avem functia care este apelata de thread-urile create
+    Avem doua cazuri
+        cazul in care rescalam imaginea caz in care vom paraleliza rescalarea, sample_grid() si march()
+        cazul in care nu rescalam caz in care vom paraleliza doar  sample_grid() si march()
+
+    Pentru rescale_image am calculat un start si end pentru a paraleliza primul for pana la a se ajunge
+    la sample_bicubic(), dupa care am facut de doua ori pthread_barrier_wait()
+        primul este pentru a return grid-ul
+        al doilea este pentru reactualizarea datelor
+
+    Functia last_part() paralelizeaza functiile sample_grid() si march()
+        calculam start-uri si end-uri din for-urile care erau in functiile respective si astfel
+        le impartim in mod egal thread-urilor, eliberand la sfarsit o parte din memorie
+    Am pastrat returnarea grid-ului pentru sample_grid deoarece trebuia sa eliberam ultimul element si de asemenea vectorul in sine.

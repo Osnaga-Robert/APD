@@ -1,0 +1,62 @@
+Pentru aceasta tema m-am folosit de trei structuri si doua variabile globale
+struct file_struct
+{
+    int rank;
+    char filename[MAX_FILENAME];
+    char **hashes;
+    int chunks;
+
+} file_struct;
+
+struct file_out
+{
+    char **file_name;
+    int files_out;
+    int rank;
+} file_out;
+
+struct upload_struct
+{
+    int rank;
+    int numtasks;
+} upload_struct;
+
+int final = 0;
+int sent = 0;
+
+file struct- strucuta pentru fisierele pe care le avem complete
+    rank- rangul caruia ii apartine
+    filename - numele fisierului
+    hashes - hash-urile specifice
+    chunks - numarul de hash-uri
+
+file_out - structura pentru fisierele pe care trebuie sa le descarcam
+    file_name - sirul de nume pentru fisierele de descarcare
+    files_out - numarul fisierelor
+    rank - rangul caruia ii apartine
+
+upload_struct - structura folosita la thread-ul de upload
+    rank - rangul clientului
+    numtasks - numarul de clienti
+
+Pentru aceasta tema am avut de implementat tracker-ul si clientii din protocolul BitTorrent.
+Pentru clienti au fost deschide doua thread-uri unul de download si unul de upload.
+Inainte de a creea cele doua thread-uri, clientii isi vor citi fisierele de intrare si isi vor trimite fisierele pe care le detin(swarm) tracker-ului(folosind MPI_Send, destinatarul fiind id-ul tracker-ului, in cazul nostru 0) pentru a stii ce fisiere detine fiecare.
+Pentru download, clientul va trebui sa trimita mai intai ce fisiere doreste sa descarce track-erului dupa care tracker-ul ii va returna o lista de fisiere detinute de alti clienti cu fisierele pe care le doreste.
+Dupa ce a primit datele necesare, va trece prin fiecare fisier si va descarca cate un hash pe parte, trimitand hash-ul respectiv clientului caruia care ii apartine, dupa care acest client ii confirma copierea, iar procesul continua pana cand s-a descarcat tot fisierul dorit.
+De asemenea la fiecare 10 mesaje primite, reactualizam tracker-ul pentru a-l informa cu noile date pe care le are clientul.
+Atunci cand un client termina de deascarcat un fisier, ii trimite un mesaj tracker-ului dupa care creeaza fisierul si scrie in acel fisier datele, dupa care trece la urmatorul fisier(daca mai exista).
+La final, se va incheia thread-ul de download si va trimite un mesaj catre tracker pentru a tine evidenta numarului de clienti care au terminat de descarcat ce isi doreau.
+Pentru thread-ul de upload doar am receptionat mesajele care erau primite de la alti clienti pentru a face legatura intre cele doua cu scopul de a primi inapoi un mesaj de confirmare.
+Acesta se inchide numai cand toti clientii si-au terminat de descarcat fisierele dorite.
+
+Pentru tracker asteptam sa primim de la toti clientii fisierele pe care le detin(folosind MPI_Recv), dupa care primeste de la fiecare clienti,
+fisierele care terbuie descarcate de la fiecare client, iar tracker-ul face o filtrare pentru fiecare client, prin care trimite fiecaruia fisierele
+dorite de la clienti diferiti(folosind MPI_Send), iar la final, doar va astepta de la fiecare client, mesaje de confimare a mesajelor
+Avem patru cazuri in care tracker-ul mai primeste mesaje de la clienti:
+    cazul in care primeste un hash si raspunde inapoi cu o confirmare prin care permite descarcarea lui
+    cazul in care se confirma descarcarea cu succes
+    cazul in care este anuntat de client ca a terminat un fisier de descarcat
+    cazul in care a terminat de descarcat toate fisierele, caz in care se incrementeza un contor pentru a verifica cati clienti mai au de terminat
+In cazul in care toti clientii au terminat de descarcat fisierele dorite, se va trimite tuturor clientilor un mesaj prin care se vor inchide 
+thread-urile de upload, dupa care se va inchide si tracker-ul
